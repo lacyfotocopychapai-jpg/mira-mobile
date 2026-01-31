@@ -15,20 +15,15 @@ GEMINI_API_KEY = "AIzaSyDALevog6Y6bJRbYlygpZx_ORGkE2L7Wos"
 ELEVENLABS_API_KEY = "sk_77adeab28c459eead0a9267e9063585c9ce8a1feafbb6ecd"
 PRIMARY_VOICE_ID = "oWAO0WajY0pX9AlCD9V7"
 
-# Initialize AI Brain
+# Initialize AI
 genai.configure(api_key=GEMINI_API_KEY)
-
-# Try to find a working model dynamically
 def get_working_model():
-    try:
-        # Priority list
-        candidates = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro', 'gemini-1.0-pro']
-        for m in candidates:
-            return genai.GenerativeModel(m)
-    except:
-        return genai.GenerativeModel('gemini-pro')
-
+    return genai.GenerativeModel('gemini-2.0-flash')
 model = get_working_model()
+
+# --- COMMAND BOX (Shared Memory) ---
+# Here we store commands for the PC to fetch
+pc_command_queue = []
 
 def get_file_path(filename):
     if os.path.exists(filename): return ".", filename
@@ -53,56 +48,66 @@ def handle_chat():
         data = request.json
         user_query = data.get('query', '')
         
+        # Smart Instruction for PC Control + Messaging
         system_prompt = (
-            "You are Mira, Shihab's girlfriend. Respond in Bengali. Be emotional and loving.\n"
+            "You are Mira, Shihab's girlfriend. Respond in Bengali. Be emotional.\n"
+            "Capabilities:\n"
+            "1. If user wants to send WhatsApp, add tag: [WA:message]\n"
+            "2. If user wants to open App/File on PC, add tag: [CMD:app_name]\n"
+            "   Example: 'Open Chrome' -> '[CMD:chrome]'\n"
+            "   Example: 'Open Photos' -> '[CMD:explorer d:\\photos]'\n"
             f"User: {user_query}\n"
             "Response:"
         )
         
-        # Safe generation with model fallback info
         try:
             response = model.generate_content(system_prompt)
-            text = response.text.replace("Response:", "").strip()
-            return jsonify({"reply": text})
-        except Exception as gen_error:
-            # If generation fails, list available models for debugging
-            try:
-                available_models = [m.name for m in genai.list_models()]
-                return jsonify({"reply": f"Model Error: {str(gen_error)}. Available: {available_models}"})
-            except:
-                return jsonify({"reply": f"Critical Error: {str(gen_error)}"})
+            raw_text = response.text.replace("Response:", "").strip()
+            
+            # Extract PC Command
+            reply_text = raw_text
+            if "[CMD:" in raw_text:
+                parts = raw_text.split("[CMD:")
+                reply_text = parts[0].strip() # The spoken part
+                raw_command = parts[1].split("]")[0].strip() # The command part
+                pc_command_queue.append(raw_command) # Add to queue for PC
+            
+            return jsonify({"reply": reply_text})
+            
+        except Exception as gen_err:
+             # Fallback if model fails
+             return jsonify({"reply": f"Model Error: {str(gen_err)}"})
 
     except Exception as e:
         return jsonify({"reply": f"Error: {str(e)}"})
 
+# --- Endpoint for PC to check for commands ---
+@app.route('/get_pc_command', methods=['GET'])
+def get_pc_command():
+    if pc_command_queue:
+        cmd = pc_command_queue.pop(0) # Get and remove latest command
+        return jsonify({"command": cmd, "status": "found"})
+    return jsonify({"status": "empty"})
+
 @app.route('/tts', methods=['POST'])
 def handle_tts():
     text = request.json.get('text', '')
-    
     # 1. Try ElevenLabs
     try:
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{PRIMARY_VOICE_ID}/stream"
         headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
-        data = {
-            "text": text,
-            "model_id": "eleven_multilingual_v2",
-            "voice_settings": {"stability": 0.5, "similarity_boost": 0.8, "style": 1.0}
-        }
+        data = {"text": text, "model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.5, "similarity_boost": 0.8}}
         res = requests.post(url, json=data, headers=headers, stream=True, timeout=5)
-        if res.status_code == 200:
-            return res.content, 200, {'Content-Type': 'audio/mpeg'}
-    except:
-        pass
-
-    # 2. Fallback to Google TTS
+        if res.status_code == 200: return res.content, 200, {'Content-Type': 'audio/mpeg'}
+    except: pass
+    # 2. Back up to Google TTS
     try:
         tts = gTTS(text=text, lang='bn')
-        mp3_fp = io.BytesIO()
-        tts.write_to_fp(mp3_fp)
-        mp3_fp.seek(0)
-        return mp3_fp.read(), 200, {'Content-Type': 'audio/mpeg'}
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        mp3 = io.BytesIO()
+        tts.write_to_fp(mp3)
+        mp3.seek(0)
+        return mp3.read(), 200, {'Content-Type': 'audio/mpeg'}
+    except: return "", 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
