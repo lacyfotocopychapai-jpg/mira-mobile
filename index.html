@@ -164,7 +164,6 @@
             }
         }
 
-        /* Audio Activation Overlay */
         #activator {
             position: fixed;
             top: 0;
@@ -218,7 +217,7 @@
     </div>
 
     <div class="chat-container" id="chat">
-        <div class="message mira-msg">হাই জানু! আমি শুনছি। মাইক বাটনে চাপ দিয়ে কথা বলো।</div>
+        <div class="message mira-msg">হাই জানু! আমি শুনছি। মাইক অন থাকলে আমি সবসময় শুনবো।</div>
     </div>
 
     <div class="input-area">
@@ -232,7 +231,6 @@
     <script>
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let audioEnabled = false;
-        let pcmPlayer = null;
 
         function activateAudio() {
             audioCtx.resume().then(() => {
@@ -242,44 +240,54 @@
             });
         }
 
-        // --- SPEECH RECOGNITION ---
+        // --- CONTINUOUS SPEECH RECOGNITION ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
-        let isListening = false;
+        let isMicOn = false;
 
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
-            recognition.lang = 'bn-BD'; // Bengali Bangladesh
-            recognition.continuous = false;
+            recognition.lang = 'bn-BD';
+            recognition.continuous = false; // Mobile browsers often prefer false and restarting manually
             recognition.interimResults = false;
 
             recognition.onstart = () => {
-                isListening = true;
                 document.getElementById('micBtn').classList.add('mic-active');
                 document.getElementById('statusText').textContent = "Listening...";
                 document.getElementById('statusText').style.color = "#00ff00";
             };
 
             recognition.onend = () => {
-                isListening = false;
-                document.getElementById('micBtn').classList.remove('mic-active');
-                document.getElementById('statusText').textContent = "Thinking...";
-                document.getElementById('statusText').style.color = "#ff00c8";
+                // AUTO RESTART if mic is supposed to be on
+                if (isMicOn) {
+                    recognition.start();
+                } else {
+                    document.getElementById('micBtn').classList.remove('mic-active');
+                    document.getElementById('statusText').textContent = "Thinking...";
+                    document.getElementById('statusText').style.color = "#ff00c8";
+                }
             };
 
             recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript;
                 document.getElementById('inp').value = transcript;
-                send(); // Auto send
+
+                // Stop temporarily to process the command, then onend will restart it
+                // isMicOn remains true
+                send();
             };
-        } else {
-            alert("Your browser does not support Voice Recognition. Please use Chrome.");
         }
 
         function toggleMic() {
             if (!recognition) return;
-            if (isListening) recognition.stop();
-            else recognition.start();
+            isMicOn = !isMicOn; // Toggle state
+
+            if (isMicOn) {
+                recognition.start();
+            } else {
+                recognition.stop();
+                document.getElementById('micBtn').classList.remove('mic-active');
+            }
         }
 
         async function send() {
@@ -297,26 +305,20 @@
                 const mM = document.createElement('div'); mM.className = 'message mira-msg'; mM.textContent = data.reply; chat.appendChild(mM);
                 chat.scrollTop = chat.scrollHeight;
 
-                document.getElementById('statusText').textContent = "Speaking...";
-                document.getElementById('statusText').style.color = "#00d2ff";
                 speak(data.reply);
-            } catch (e) {
-                document.getElementById('statusText').textContent = "Error";
-            }
+            } catch (e) { console.error(e); }
         }
 
         async function speak(text) {
             if (!audioEnabled) return;
             try {
                 const res = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: text }) });
-
                 if (res.ok) {
                     const blob = await res.blob();
                     const url = URL.createObjectURL(blob);
                     const audio = new Audio(url);
                     audio.onended = () => {
-                        document.getElementById('statusText').textContent = "Online";
-                        document.getElementById('statusText').style.color = "#888";
+                        // Audio finished
                     };
                     audio.play();
                 }
