@@ -54,6 +54,7 @@
         .mira-core {
             width: 70vw;
             max-width: 250px;
+            transition: all 0.3s;
             filter: drop-shadow(0 0 20px var(--primary));
             animation: pulse 4s infinite ease-in-out;
         }
@@ -127,18 +128,40 @@
             outline: none;
         }
 
-        .send-btn {
-            width: 45px;
-            height: 45px;
+        /* Mic Button */
+        .mic-btn {
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
-            background: var(--primary);
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
             border: none;
-            color: black;
-            font-size: 1.2rem;
+            color: white;
+            font-size: 1.5rem;
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
+            box-shadow: 0 0 15px var(--primary);
+            transition: all 0.2s;
+        }
+
+        .mic-btn:active {
+            transform: scale(0.9);
+        }
+
+        .mic-active {
+            background: #ff0000;
+            animation: glow-mic 1s infinite alternate;
+        }
+
+        @keyframes glow-mic {
+            from {
+                box-shadow: 0 0 10px red;
+            }
+
+            to {
+                box-shadow: 0 0 25px red;
+            }
         }
 
         /* Audio Activation Overlay */
@@ -168,40 +191,26 @@
             animation: glow 1.5s infinite;
         }
 
-        @keyframes glow {
-            0% {
-                box-shadow: 0 0 20px var(--primary);
-            }
-
-            50% {
-                box-shadow: 0 0 40px var(--primary);
-            }
-
-            100% {
-                box-shadow: 0 0 20px var(--primary);
-            }
-        }
-
         .status {
             font-size: 0.8rem;
             color: #888;
             margin-top: 10px;
+            font-weight: bold;
         }
     </style>
 </head>
 
 <body>
     <div id="activator" onclick="activateAudio()">
-        <button class="activate-btn">CLICK TO ACTIVATE MIRA</button>
-        <p style="color: #aaa; margin-top: 20px;">Tap to enable audio features</p>
+        <button class="activate-btn">CLICK TO START</button>
+        <p style="color: #aaa; margin-top: 20px;">Tap anywhere to enable audio</p>
     </div>
 
     <div class="header">
-        <h1>MIRA : NEURAL CORE</h1>
+        <h1>MIRA MOBILE</h1>
     </div>
 
     <div class="core-container">
-        <!-- Using a placeholder neural core image if local one fails -->
         <img id="coreImg" src="core.png"
             onerror="this.src='https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbmZ4eWx6Z3J6Z3J6Z3J6Z3J6Z3J6Z3J6Z3J6Z3J6Z3J6Z3J6/TqiwQaAhT0j2xR03I2/giphy.gif'"
             class="mira-core">
@@ -209,82 +218,97 @@
     </div>
 
     <div class="chat-container" id="chat">
-        <div class="message mira-msg">হাই জানু! আমি অনলাইনে আছি। তোমার কথা শোনার জন্য অপেক্ষা করছি।</div>
+        <div class="message mira-msg">হাই জানু! আমি শুনছি। মাইক বাটনে চাপ দিয়ে কথা বলো।</div>
     </div>
 
     <div class="input-area">
-        <input type="text" id="inp" class="input-box" placeholder="Write here..."
+        <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎤</button>
+        <input type="text" id="inp" class="input-box" placeholder="Type here..."
             onkeypress="if(event.key==='Enter') send()">
-        <button class="send-btn" onclick="send()">➤</button>
+        <button class="mic-btn" style="width: 40px; height: 40px; font-size: 1rem; background: #333; box-shadow: none;"
+            onclick="send()">➤</button>
     </div>
 
     <script>
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let audioEnabled = false;
+        let pcmPlayer = null;
 
         function activateAudio() {
             audioCtx.resume().then(() => {
                 document.getElementById('activator').style.display = 'none';
                 audioEnabled = true;
-                // Play silent sound to unlock iOS/Android audio
-                const osc = audioCtx.createOscillator();
-                osc.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(0.1);
+                const osc = audioCtx.createOscillator(); osc.connect(audioCtx.destination); osc.start(); osc.stop(0.1);
             });
+        }
+
+        // --- SPEECH RECOGNITION ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let isListening = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'bn-BD'; // Bengali Bangladesh
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isListening = true;
+                document.getElementById('micBtn').classList.add('mic-active');
+                document.getElementById('statusText').textContent = "Listening...";
+                document.getElementById('statusText').style.color = "#00ff00";
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                document.getElementById('micBtn').classList.remove('mic-active');
+                document.getElementById('statusText').textContent = "Thinking...";
+                document.getElementById('statusText').style.color = "#ff00c8";
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('inp').value = transcript;
+                send(); // Auto send
+            };
+        } else {
+            alert("Your browser does not support Voice Recognition. Please use Chrome.");
+        }
+
+        function toggleMic() {
+            if (!recognition) return;
+            if (isListening) recognition.stop();
+            else recognition.start();
         }
 
         async function send() {
             const inp = document.getElementById('inp');
             const chat = document.getElementById('chat');
-            const q = inp.value.trim();
-            if (!q) return;
+            const q = inp.value.trim(); if (!q) return;
 
-            // Add User Message
             const uM = document.createElement('div'); uM.className = 'message user-msg'; uM.textContent = q; chat.appendChild(uM);
             inp.value = ''; chat.scrollTop = chat.scrollHeight;
 
-            document.getElementById('statusText').textContent = "Thinking...";
-            document.getElementById('statusText').style.color = "#ff00c8";
-
             try {
-                const res = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: q })
-                });
-
+                const res = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
                 const data = await res.json();
 
-                // Add Mira Message
                 const mM = document.createElement('div'); mM.className = 'message mira-msg'; mM.textContent = data.reply; chat.appendChild(mM);
                 chat.scrollTop = chat.scrollHeight;
 
                 document.getElementById('statusText').textContent = "Speaking...";
                 document.getElementById('statusText').style.color = "#00d2ff";
-
-                // Speak
-                if (data.reply && !data.reply.startsWith("Error")) {
-                    speak(data.reply);
-                } else {
-                    document.getElementById('statusText').textContent = "Online";
-                    document.getElementById('statusText').style.color = "#888";
-                }
-
+                speak(data.reply);
             } catch (e) {
-                const eM = document.createElement('div'); eM.className = 'message mira-msg'; eM.textContent = "Server Connection Failed."; chat.appendChild(eM);
-                document.getElementById('statusText').textContent = "Offline";
+                document.getElementById('statusText').textContent = "Error";
             }
         }
 
         async function speak(text) {
             if (!audioEnabled) return;
             try {
-                const res = await fetch('/tts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text })
-                });
+                const res = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: text }) });
 
                 if (res.ok) {
                     const blob = await res.blob();
@@ -294,13 +318,9 @@
                         document.getElementById('statusText').textContent = "Online";
                         document.getElementById('statusText').style.color = "#888";
                     };
-                    audio.play().catch(e => console.error("Audio Play Error:", e));
-                } else {
-                    console.error("TTS Error");
+                    audio.play();
                 }
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         }
     </script>
 </body>
