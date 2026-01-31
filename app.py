@@ -11,7 +11,7 @@ app = Flask(__name__)
 CORS(app)
 
 # --- Configuration ---
-GEMINI_API_KEY = "AIzaSyDALevog6Y6bJRbYlygpZx_ORGkE2L7Wos"
+GEMINI_API_KEY = "AIzaSyAjjmL3ZWTg4ipIXgYh0Q56L4Llws3iGVQ"
 ELEVENLABS_API_KEY = "sk_77adeab28c459eead0a9267e9063585c9ce8a1feafbb6ecd"
 PRIMARY_VOICE_ID = "oWAO0WajY0pX9AlCD9V7"
 
