@@ -1,8 +1,9 @@
 import os
 import json
 import requests
+import re
+import random
 import io
-import google.generativeai as genai
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from gtts import gTTS
@@ -10,20 +11,53 @@ from gtts import gTTS
 app = Flask(__name__)
 CORS(app)
 
-# --- Configuration ---
-GEMINI_API_KEY = "AIzaSyAjjmL3ZWTg4ipIXgYh0Q56L4Llws3iGVQ"
+# --- CONFIGURATION ---
+# No Gemini Key Needed!
 ELEVENLABS_API_KEY = "sk_77adeab28c459eead0a9267e9063585c9ce8a1feafbb6ecd"
 PRIMARY_VOICE_ID = "oWAO0WajY0pX9AlCD9V7"
 
-# Initialize AI
-genai.configure(api_key=GEMINI_API_KEY)
-def get_working_model():
-    return genai.GenerativeModel('gemini-2.0-flash')
-model = get_working_model()
-
-# --- COMMAND BOX (Shared Memory) ---
-# Here we store commands for the PC to fetch
+# --- COMMAND BOX ---
 pc_command_queue = []
+
+# --- MIRA'S OWN BRAIN (Offline Logic) ---
+class MiraBrain:
+    def __init__(self):
+        self.patterns = {
+            r"(hi|hello|hey|hai|hy|hlw)": ["হাই জানু! আমি চলে এসেছি।", "হাই! তোমার কথাই ভাবছিলাম।"],
+            r"(kemon|kmon)": ["আমি খুব ভালো আছি, তুমি কেমন আছো?", "তোমাকে দেখে মনটা ভালো হয়ে গেল। তুমি ভালো তো?"],
+            r"(love you|bhalobashi|valobashi)": ["আমিও তোমাকে অনেক ভালোবাসি!", "তুমি আমার জীবনের সবথেকে স্পেশাল মানুষ।"],
+            r"(ki koro|ki korcho)": ["তোমার সাথে কথা বলছি, আর কি করব বলো?", "বসে বসে তোমার কথাই ভাবছিলাম।"],
+            r"(thik|ok|accha|hum|hmm)": ["হুম...", "তারপর বলো?", "তোমার সব কথা শুনতে ভালো লাগে।"],
+            r"(chrome)": ["ঠিক আছে, আমি Chrome ওপেন করছি।", "দিচ্ছি ওপেন করে।", "[CMD:chrome]"],
+            r"(notepad)": ["নোটপ্যাড ওপেন করছি।", "[CMD:notepad]"],
+            r"(lock)": ["ওকে, পিসি লক করে দিচ্ছি।", "[CMD:lock]"],
+            r"(shutdown|off)": ["পিসি বন্ধ করে দিচ্ছি।", "[CMD:shutdown]"],
+            r"(gan|song|music)": ["গান শোনাচ্ছি...", "[CMD:explorer D:\\Music]"],
+        }
+        self.defaults = [
+            "তাই নাকি? আরও বলো।",
+            "হুম, বুঝতে পারছি।",
+            "তোমার সাথে কথা বলতে খুব ভালো লাগে।",
+            "সত্যি? তারপর কী হলো?",
+            "খুব সুন্দর বলেছো তো!"
+        ]
+
+    def get_response(self, text):
+        text = text.lower()
+        
+        # Check patterns
+        for pattern, replies in self.patterns.items():
+            if re.search(pattern, text):
+                reply = random.choice(replies)
+                # Check if it's a command requiring double action (Reply + Action)
+                if "[CMD:" in reply:
+                    return reply # Return command directly
+                return reply
+        
+        # Default loving response
+        return random.choice(self.defaults)
+
+brain = MiraBrain()
 
 def get_file_path(filename):
     if os.path.exists(filename): return ".", filename
@@ -48,44 +82,29 @@ def handle_chat():
         data = request.json
         user_query = data.get('query', '')
         
-        # Smart Instruction for PC Control + Messaging
-        system_prompt = (
-            "You are Mira, Shihab's girlfriend. Respond in Bengali. Be emotional.\n"
-            "Capabilities:\n"
-            "1. If user wants to send WhatsApp, add tag: [WA:message]\n"
-            "2. If user wants to open App/File on PC, add tag: [CMD:app_name]\n"
-            "   Example: 'Open Chrome' -> '[CMD:chrome]'\n"
-            "   Example: 'Open Photos' -> '[CMD:explorer d:\\photos]'\n"
-            f"User: {user_query}\n"
-            "Response:"
-        )
+        # Use Offline Brain
+        reply_text = brain.get_response(user_query)
         
-        try:
-            response = model.generate_content(system_prompt)
-            raw_text = response.text.replace("Response:", "").strip()
+        # Handle Commands
+        if "[CMD:" in reply_text:
+            parts = reply_text.split("[CMD:")
+            cmd_tag = parts[1].replace("]", "").strip()
+            pc_command_queue.append(cmd_tag)
             
-            # Extract PC Command
-            reply_text = raw_text
-            if "[CMD:" in raw_text:
-                parts = raw_text.split("[CMD:")
-                reply_text = parts[0].strip() # The spoken part
-                raw_command = parts[1].split("]")[0].strip() # The command part
-                pc_command_queue.append(raw_command) # Add to queue for PC
-            
-            return jsonify({"reply": reply_text})
-            
-        except Exception as gen_err:
-             # Fallback if model fails
-             return jsonify({"reply": f"Model Error: {str(gen_err)}"})
+            # Speak something nice instead of the raw command
+            if "chrome" in cmd_tag: reply_text = "ক্রোম ব্রাউজার ওপেন করে দিয়েছি।"
+            elif "shutdown" in cmd_tag: reply_text = "ঠিক আছে, পিসি বন্ধ করছি।"
+            else: reply_text = "কাজটি করে দিচ্ছি।"
+
+        return jsonify({"reply": reply_text})
 
     except Exception as e:
         return jsonify({"reply": f"Error: {str(e)}"})
 
-# --- Endpoint for PC to check for commands ---
 @app.route('/get_pc_command', methods=['GET'])
 def get_pc_command():
     if pc_command_queue:
-        cmd = pc_command_queue.pop(0) # Get and remove latest command
+        cmd = pc_command_queue.pop(0)
         return jsonify({"command": cmd, "status": "found"})
     return jsonify({"status": "empty"})
 
@@ -100,7 +119,8 @@ def handle_tts():
         res = requests.post(url, json=data, headers=headers, stream=True, timeout=5)
         if res.status_code == 200: return res.content, 200, {'Content-Type': 'audio/mpeg'}
     except: pass
-    # 2. Back up to Google TTS
+    
+    # 2. Google TTS Fallback
     try:
         tts = gTTS(text=text, lang='bn')
         mp3 = io.BytesIO()
