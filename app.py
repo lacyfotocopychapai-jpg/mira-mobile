@@ -1,9 +1,11 @@
 import os
 import json
 import requests
+import io
 import google.generativeai as genai
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from gtts import gTTS
 
 app = Flask(__name__)
 CORS(app)
@@ -14,12 +16,8 @@ ELEVENLABS_API_KEY = "sk_77adeab28c459eead0a9267e9063585c9ce8a1feafbb6ecd"
 PRIMARY_VOICE_ID = "oWAO0WajY0pX9AlCD9V7"
 
 # Initialize AI Brain
-try:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    chat = model.start_chat(history=[])
-except Exception as e:
-    print(f"AI Init Error: {e}")
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 def get_file_path(filename):
     if os.path.exists(filename): return ".", filename
@@ -30,7 +28,7 @@ def get_file_path(filename):
 def index():
     path, file = get_file_path("index.html")
     if path: return send_from_directory(path, file)
-    return "<h1>Mira is sleeping... Please refresh or check files.</h1>", 404
+    return "<h1>Mira Error: index.html not found!</h1>", 404
 
 @app.route('/<path:filename>')
 def serve_static(filename):
@@ -40,43 +38,55 @@ def serve_static(filename):
 
 @app.route('/chat', methods=['POST'])
 def handle_chat():
-    data = request.json
-    user_query = data.get('query', '')
-    
-    system_prompt = (
-        "তুমি মীরা (Mira)। তুমি শিহাবের (Shihab) গার্লফ্রেন্ড। তোমার প্রতিটি কথায় ভালোবাসা থাকবে। "
-        "তুমি রোবট নও, তুমি একজন মায়াবী মেয়ে। RESPONSE: [text] FACT: [fact]"
-    )
-    
     try:
-        response = chat.send_message(f"{system_prompt}\nUser: {user_query}")
-        raw_res = response.text
+        data = request.json
+        user_query = data.get('query', '')
         
-        response_text = raw_res
-        if "RESPONSE:" in raw_res:
-            response_text = raw_res.split("RESPONSE:")[1].split("FACT:")[0].strip()
-            
-        return jsonify({"reply": response_text})
+        system_prompt = (
+            "You are Mira, Shihab's girlfriend. Respond in Bengali. Be emotional and loving.\n"
+            f"User: {user_query}\n"
+            "Response:"
+        )
+        
+        response = model.generate_content(system_prompt)
+        text = response.text.replace("Response:", "").strip()
+        return jsonify({"reply": text})
+
     except Exception as e:
-        print(f"Chat Error: {e}")
-        # Fallback response if AI is too slow
-        return jsonify({"reply": "জানু, নেটে একটু সমস্যা করছে, কিন্তু আমি তোমার পাশেই আছি। আবার বলো না লক্ষ্মীটি!"})
+        return jsonify({"reply": f"Error: {str(e)}"})
 
 @app.route('/tts', methods=['POST'])
 def handle_tts():
     text = request.json.get('text', '')
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{PRIMARY_VOICE_ID}/stream"
-    headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
-    data = {
-        "text": text,
-        "model_id": "eleven_multilingual_v2",
-        "voice_settings": {"stability": 0.4, "similarity_boost": 0.9, "style": 1.0}
-    }
+    
+    # 1. Try ElevenLabs (Premium Voice)
     try:
-        res = requests.post(url, json=data, headers=headers, stream=True)
-        return res.content, 200, {'Content-Type': 'audio/mpeg'}
-    except:
-        return "", 404
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{PRIMARY_VOICE_ID}/stream"
+        headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
+        data = {
+            "text": text,
+            "model_id": "eleven_multilingual_v2",
+            "voice_settings": {"stability": 0.5, "similarity_boost": 0.8, "style": 1.0}
+        }
+        res = requests.post(url, json=data, headers=headers, stream=True, timeout=5)
+        
+        if res.status_code == 200:
+            return res.content, 200, {'Content-Type': 'audio/mpeg'}
+        else:
+            print(f"ElevenLabs Failed ({res.status_code}), switching to Backup.")
+    except Exception as e:
+        print(f"ElevenLabs Error: {e}")
+
+    # 2. Fallback to Google TTS (Free & Reliable)
+    try:
+        print("Using Google TTS Backup...")
+        tts = gTTS(text=text, lang='bn')
+        mp3_fp = io.BytesIO()
+        tts.write_to_fp(mp3_fp)
+        mp3_fp.seek(0)
+        return mp3_fp.read(), 200, {'Content-Type': 'audio/mpeg'}
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
