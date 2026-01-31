@@ -17,7 +17,18 @@ PRIMARY_VOICE_ID = "oWAO0WajY0pX9AlCD9V7"
 
 # Initialize AI Brain
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+
+# Try to find a working model dynamically
+def get_working_model():
+    try:
+        # Priority list
+        candidates = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro', 'gemini-1.0-pro']
+        for m in candidates:
+            return genai.GenerativeModel(m)
+    except:
+        return genai.GenerativeModel('gemini-pro')
+
+model = get_working_model()
 
 def get_file_path(filename):
     if os.path.exists(filename): return ".", filename
@@ -48,9 +59,18 @@ def handle_chat():
             "Response:"
         )
         
-        response = model.generate_content(system_prompt)
-        text = response.text.replace("Response:", "").strip()
-        return jsonify({"reply": text})
+        # Safe generation with model fallback info
+        try:
+            response = model.generate_content(system_prompt)
+            text = response.text.replace("Response:", "").strip()
+            return jsonify({"reply": text})
+        except Exception as gen_error:
+            # If generation fails, list available models for debugging
+            try:
+                available_models = [m.name for m in genai.list_models()]
+                return jsonify({"reply": f"Model Error: {str(gen_error)}. Available: {available_models}"})
+            except:
+                return jsonify({"reply": f"Critical Error: {str(gen_error)}"})
 
     except Exception as e:
         return jsonify({"reply": f"Error: {str(e)}"})
@@ -59,7 +79,7 @@ def handle_chat():
 def handle_tts():
     text = request.json.get('text', '')
     
-    # 1. Try ElevenLabs (Premium Voice)
+    # 1. Try ElevenLabs
     try:
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{PRIMARY_VOICE_ID}/stream"
         headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
@@ -69,17 +89,13 @@ def handle_tts():
             "voice_settings": {"stability": 0.5, "similarity_boost": 0.8, "style": 1.0}
         }
         res = requests.post(url, json=data, headers=headers, stream=True, timeout=5)
-        
         if res.status_code == 200:
             return res.content, 200, {'Content-Type': 'audio/mpeg'}
-        else:
-            print(f"ElevenLabs Failed ({res.status_code}), switching to Backup.")
-    except Exception as e:
-        print(f"ElevenLabs Error: {e}")
+    except:
+        pass
 
-    # 2. Fallback to Google TTS (Free & Reliable)
+    # 2. Fallback to Google TTS
     try:
-        print("Using Google TTS Backup...")
         tts = gTTS(text=text, lang='bn')
         mp3_fp = io.BytesIO()
         tts.write_to_fp(mp3_fp)
