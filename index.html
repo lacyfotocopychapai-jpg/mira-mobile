@@ -1,58 +1,308 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mira Mobile Interface</title>
+    <title>Mira Mobile</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #00d2ff; --secondary: #ff00c8; --bg: #050505; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); font-family: 'Outfit', sans-serif; color: white; overflow: hidden; display: flex; flex-direction: column; }
-        .header { padding: 20px; text-align: center; background: rgba(0,0,0,0.5); border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .header h1 { margin: 0; font-size: 1.5rem; letter-spacing: 4px; background: linear-gradient(to right, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; }
-        .core-container { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; }
-        .mira-core { width: 80vw; max-width: 250px; filter: drop-shadow(0 0 30px var(--primary)); animation: pulse 4s infinite ease-in-out; }
-        @keyframes pulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px var(--primary)); } 50% { transform: scale(1.05); filter: drop-shadow(0 0 40px var(--secondary)); } }
-        .chat-container { height: 200px; padding: 20px; overflow-y: auto; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); }
-        .message { margin-bottom: 10px; padding: 10px 15px; border-radius: 15px; max-width: 85%; font-size: 0.9rem; }
-        .mira-msg { background: rgba(255,255,255,0.1); border-left: 3px solid var(--secondary); }
-        .user-msg { background: var(--primary); margin-left: auto; color: black; }
-        .input-area { padding: 15px; background: black; display: flex; gap: 10px; }
-        .input-box { flex: 1; background: #111; border: 1px solid #333; border-radius: 20px; padding: 10px 15px; color: white; outline: none; }
-        .send-btn { background: var(--secondary); border: none; padding: 10px 20px; border-radius: 20px; color: white; font-weight: bold; }
+        :root {
+            --primary: #00d2ff;
+            --secondary: #ff00c8;
+            --bg: #050505;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            font-family: 'Outfit', sans-serif;
+            color: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 15px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            color: var(--primary);
+            text-transform: uppercase;
+        }
+
+        .core-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .mira-core {
+            width: 70vw;
+            max-width: 250px;
+            filter: drop-shadow(0 0 20px var(--primary));
+            animation: pulse 4s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 15px var(--primary));
+            }
+
+            50% {
+                transform: scale(1.05);
+                filter: drop-shadow(0 0 30px var(--secondary));
+            }
+
+            100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 15px var(--primary));
+            }
+        }
+
+        .chat-container {
+            height: 35vh;
+            padding: 15px;
+            overflow-y: auto;
+            background: rgba(20, 20, 30, 0.8);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message {
+            padding: 10px 15px;
+            border-radius: 12px;
+            max-width: 85%;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .mira-msg {
+            background: rgba(0, 210, 255, 0.1);
+            border-left: 3px solid var(--primary);
+            align-self: flex-start;
+        }
+
+        .user-msg {
+            background: linear-gradient(135deg, var(--secondary), #aa00ff);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .input-area {
+            padding: 15px;
+            background: black;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input-box {
+            flex: 1;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 25px;
+            padding: 12px 18px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .send-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: none;
+            color: black;
+            font-size: 1.2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        /* Audio Activation Overlay */
+        #activator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .activate-btn {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background: var(--primary);
+            border: none;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 30px var(--primary);
+            animation: glow 1.5s infinite;
+        }
+
+        @keyframes glow {
+            0% {
+                box-shadow: 0 0 20px var(--primary);
+            }
+
+            50% {
+                box-shadow: 0 0 40px var(--primary);
+            }
+
+            100% {
+                box-shadow: 0 0 20px var(--primary);
+            }
+        }
+
+        .status {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 10px;
+        }
     </style>
 </head>
+
 <body>
-    <div class="header"><h1>MIRA MOBILE</h1></div>
-    <div class="core-container"><img id="coreImg" src="https://i.imgur.com/r7qfHIn.png" class="mira-core"></div>
-    <div class="chat-container" id="chat"><div class="message mira-msg">হাই জানু! আমি তোমার মোবাইলে পৌঁছে গেছি। কেমন আছো?</div></div>
-    <div class="input-area">
-        <input type="text" id="inp" class="input-box" placeholder="মীরাকে কিছু বলো...">
-        <button class="send-btn" onclick="send()">পাঠাও</button>
+    <div id="activator" onclick="activateAudio()">
+        <button class="activate-btn">CLICK TO ACTIVATE MIRA</button>
+        <p style="color: #aaa; margin-top: 20px;">Tap to enable audio features</p>
     </div>
+
+    <div class="header">
+        <h1>MIRA : NEURAL CORE</h1>
+    </div>
+
+    <div class="core-container">
+        <!-- Using a placeholder neural core image if local one fails -->
+        <img id="coreImg" src="core.png"
+            onerror="this.src='https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbmZ4eWx6Z3J6Z3J6Z3J6Z3J6Z3J6Z3J6Z3J6Z3J6Z3J6Z3J6/TqiwQaAhT0j2xR03I2/giphy.gif'"
+            class="mira-core">
+        <div id="statusText" class="status">Online</div>
+    </div>
+
+    <div class="chat-container" id="chat">
+        <div class="message mira-msg">হাই জানু! আমি অনলাইনে আছি। তোমার কথা শোনার জন্য অপেক্ষা করছি।</div>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="inp" class="input-box" placeholder="Write here..."
+            onkeypress="if(event.key==='Enter') send()">
+        <button class="send-btn" onclick="send()">➤</button>
+    </div>
+
     <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let audioEnabled = false;
+
+        function activateAudio() {
+            audioCtx.resume().then(() => {
+                document.getElementById('activator').style.display = 'none';
+                audioEnabled = true;
+                // Play silent sound to unlock iOS/Android audio
+                const osc = audioCtx.createOscillator();
+                osc.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(0.1);
+            });
+        }
+
         async function send() {
             const inp = document.getElementById('inp');
             const chat = document.getElementById('chat');
-            const q = inp.value; if(!q) return;
-            const uM = document.createElement('div'); uM.className='message user-msg'; uM.textContent=q; chat.appendChild(uM);
+            const q = inp.value.trim();
+            if (!q) return;
+
+            // Add User Message
+            const uM = document.createElement('div'); uM.className = 'message user-msg'; uM.textContent = q; chat.appendChild(uM);
             inp.value = ''; chat.scrollTop = chat.scrollHeight;
+
+            document.getElementById('statusText').textContent = "Thinking...";
+            document.getElementById('statusText').style.color = "#ff00c8";
+
             try {
-                const res = await fetch('/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query:q})});
-                const d = await res.json();
-                const mM = document.createElement('div'); mM.className='message mira-msg'; mM.textContent=d.reply; chat.appendChild(mM);
+                const res = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: q })
+                });
+
+                const data = await res.json();
+
+                // Add Mira Message
+                const mM = document.createElement('div'); mM.className = 'message mira-msg'; mM.textContent = data.reply; chat.appendChild(mM);
                 chat.scrollTop = chat.scrollHeight;
-                speak(d.reply);
-            } catch(e) { console.error(e); }
+
+                document.getElementById('statusText').textContent = "Speaking...";
+                document.getElementById('statusText').style.color = "#00d2ff";
+
+                // Speak
+                if (data.reply && !data.reply.startsWith("Error")) {
+                    speak(data.reply);
+                } else {
+                    document.getElementById('statusText').textContent = "Online";
+                    document.getElementById('statusText').style.color = "#888";
+                }
+
+            } catch (e) {
+                const eM = document.createElement('div'); eM.className = 'message mira-msg'; eM.textContent = "Server Connection Failed."; chat.appendChild(eM);
+                document.getElementById('statusText').textContent = "Offline";
+            }
         }
-        async function speak(t) {
+
+        async function speak(text) {
+            if (!audioEnabled) return;
             try {
-                const res = await fetch('/tts', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text:t})});
-                const blob = await res.blob();
-                const audio = new Audio(URL.createObjectURL(blob));
-                audio.play();
-            } catch(e) {}
+                const res = await fetch('/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const audio = new Audio(url);
+                    audio.onended = () => {
+                        document.getElementById('statusText').textContent = "Online";
+                        document.getElementById('statusText').style.color = "#888";
+                    };
+                    audio.play().catch(e => console.error("Audio Play Error:", e));
+                } else {
+                    console.error("TTS Error");
+                }
+            } catch (e) {
+                console.error(e);
+            }
         }
     </script>
 </body>
+
 </html>
