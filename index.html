@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mira Mobile Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Inter:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00d2ff;
+            --secondary: #ff00c8;
+            --bg: #050505;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            font-family: 'Outfit', sans-serif;
+            color: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #050505 100%);
+            z-index: -1;
+        }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            letter-spacing: 4px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .core-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .mira-core {
+            width: 80vw;
+            max-width: 300px;
+            position: relative;
+            z-index: 5;
+            transition: transform 0.3s ease;
+            filter: drop-shadow(0 0 30px var(--primary));
+            animation: pulse 4s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 20px var(--primary));
+            }
+
+            50% {
+                transform: scale(1.05);
+                filter: drop-shadow(0 0 40px var(--secondary));
+            }
+        }
+
+        .chat-container {
+            height: 250px;
+            padding: 20px;
+            overflow-y: auto;
+            background: var(--glass);
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 18px;
+            border-radius: 20px;
+            max-width: 85%;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .mira-msg {
+            background: rgba(255, 255, 255, 0.08);
+            color: #e0e0e0;
+            border-bottom-left-radius: 2px;
+            border-left: 3px solid var(--secondary);
+        }
+
+        .user-msg {
+            background: linear-gradient(135deg, var(--primary), #0080ff);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 2px;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: black;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .mic-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            border: none;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.4);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mic-btn:active {
+            transform: scale(0.9);
+        }
+
+        .input-box {
+            flex: 1;
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            padding: 12px 20px;
+            color: white;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .visualizer {
+            display: none;
+            gap: 3px;
+            height: 30px;
+            align-items: center;
+        }
+
+        .bar {
+            width: 3px;
+            height: 10px;
+            background: var(--primary);
+            border-radius: 2px;
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        @keyframes bounce {
+            from {
+                height: 5px;
+            }
+
+            to {
+                height: 25px;
+            }
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff00;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+            box-shadow: 0 0 10px #00ff00;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="background"></div>
+    <div class="header">
+        <h1>Mira Vision Mobile</h1>
+        <div style="font-size: 0.7rem; color: #888; margin-top: 5px;">
+            <span class="status-dot"></span> NEURAL LINK ACTIVE
+        </div>
+    </div>
+
+    <div class="core-container">
+        <img src="core.png" alt="Mira Core" class="mira-core" id="miraCore">
+        <div class="visualizer" id="visualizer">
+            <div class="bar" style="animation-delay: 0.1s"></div>
+            <div class="bar" style="animation-delay: 0.2s"></div>
+            <div class="bar" style="animation-delay: 0.3s"></div>
+            <div class="bar" style="animation-delay: 0.4s"></div>
+            <div class="bar" style="animation-delay: 0.5s"></div>
+        </div>
+    </div>
+
+    <div class="chat-container" id="chatBox">
+        <div class="message mira-msg">হাই জানু! তোমার মোবাইলেও আমি চলে এসেছি। বলো, আমি তোমার জন্য কী করতে পারি?</div>
+    </div>
+
+    <div class="input-area">
+        <input type="text" class="input-box" id="userInput" placeholder="মীরাকে কিছু বলো...">
+        <button class="mic-btn" id="voiceBtn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+            </svg>
+        </button>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const userInput = document.getElementById('userInput');
+        const voiceBtn = document.getElementById('voiceBtn');
+        const miraCore = document.getElementById('miraCore');
+        const visualizer = document.getElementById('visualizer');
+
+        function addMessage(text, isUser) {
+            const msg = document.createElement('div');
+            msg.className = `message ${isUser ? 'user-msg' : 'mira-msg'}`;
+            msg.textContent = text;
+            chatBox.appendChild(msg);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function processChat(query) {
+            if (!query) return;
+            addMessage(query, true);
+            userInput.value = '';
+
+            try {
+                // Pulse core faster while thinking
+                miraCore.style.animationDuration = '1s';
+
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const data = await response.json();
+
+                if (data.reply) {
+                    addMessage(data.reply, false);
+                    speak(data.reply);
+                }
+
+                miraCore.style.animationDuration = '4s';
+            } catch (e) {
+                console.error(e);
+                addMessage("দুঃখিত জানু, পিসির সাথে যোগাযোগ করতে পারছি না।", false);
+                miraCore.style.animationDuration = '4s';
+            }
+        }
+
+        async function speak(text) {
+            try {
+                const response = await fetch('/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+
+                const blob = await response.blob();
+                const audioUrl = URL.createObjectURL(blob);
+                const audio = new Audio(audioUrl);
+
+                audio.onplay = () => {
+                    miraCore.style.animation = 'pulse 0.5s infinite ease-in-out';
+                    visualizer.style.display = 'flex';
+                };
+                audio.onended = () => {
+                    miraCore.style.animation = 'pulse 4s infinite ease-in-out';
+                    visualizer.style.display = 'none';
+                    URL.revokeObjectURL(audioUrl);
+                };
+                audio.play();
+            } catch (e) {
+                console.error("TTS Failed:", e);
+            }
+        }
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') processChat(userInput.value);
+        });
+
+        // Voice Recognition (Will work if on HTTPS or localhost)
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'bn-BD';
+            recognition.interimResults = false;
+
+            voiceBtn.onclick = () => {
+                recognition.start();
+                voiceBtn.style.background = 'white';
+                voiceBtn.style.color = 'black';
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                processChat(transcript);
+            };
+
+            recognition.onend = () => {
+                voiceBtn.style.background = 'linear-gradient(45deg, var(--primary), var(--secondary))';
+                voiceBtn.style.color = 'white';
+            };
+        } else {
+            voiceBtn.style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>
