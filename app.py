@@ -17,7 +17,7 @@ PRIMARY_VOICE_ID = "oWAO0WajY0pX9AlCD9V7"
 
 # Initialize AI Brain
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-pro')
 
 def get_file_path(filename):
     if os.path.exists(filename): return ".", filename
